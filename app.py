@@ -1,69 +1,118 @@
-from flask import Flask, render_template, request, redirect
-import sqlite3
+from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from io import BytesIO
+from fpdf import FPDF
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///patients.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-def get_advice(symptoms):
-    symptoms = symptoms.lower()
-    if "fever" in symptoms and "cough" in symptoms:
-        return "Possible viral infection. Stay hydrated and monitor temperature. Visit a doctor if symptoms persist."
-    elif "chest pain" in symptoms:
-        return "Chest pain can be serious. Seek immediate medical attention."
-    elif "headache" in symptoms:
-        return "Try rest and hydration. If severe or persistent, consult a physician."
-    else:
-        return "Your symptoms need detailed review. Please book a consultation."
+db = SQLAlchemy(app)
 
+# ---------------------
+# Database Models
+# ---------------------
+class Doctor(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+
+class Patient(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    age = db.Column(db.Integer)
+    diagnosis = db.Column(db.String(200))
+
+# ---------------------
+# Routes
+# ---------------------
 @app.route('/')
 def home():
-    return render_template('index.html')
+    if 'doctor' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
 
-@app.route('/submit', methods=['POST'])
-def submit():
-    name = request.form['name']
-    age = request.form['age']
-    symptoms = request.form['symptoms']
-    advice = get_advice(symptoms)
-    drugs = ""
-    notes = ""
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        doctor = Doctor.query.filter_by(username=request.form['username']).first()
+        if doctor and check_password_hash(doctor.password, request.form['password']):
+            session['doctor'] = doctor.username
+            return redirect(url_for('dashboard'))
+        else:
+            error = 'Invalid username or password'
+    return render_template('login.html', error=error)
 
-    conn = sqlite3.connect('patients.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO patients (name, age, symptoms, advice, drugs, notes) VALUES (?, ?, ?, ?, ?, ?)",
-              (name, age, symptoms, advice, drugs, notes))
-    conn.commit()
-    conn.close()
-
-    return render_template('result.html', name=name, age=age, symptoms=symptoms, advice=advice)
+@app.route('/logout')
+def logout():
+    session.pop('doctor', None)
+    return redirect(url_for('login'))
 
 @app.route('/dashboard')
 def dashboard():
-    conn = sqlite3.connect('patients.db')
-    c = conn.cursor()
-    c.execute("SELECT * FROM patients ORDER BY id DESC")
-    patients = c.fetchall()
-    conn.close()
-    return render_template('dashboard.html', patients=patients)
+    if 'doctor' not in session:
+        return redirect(url_for('login'))
+    patients = Patient.query.all()
+    return render_template('dashboard.html', patients=patients, doctor_name=session['doctor'])
+
+@app.route('/add', methods=['GET', 'POST'])
+def add_patient():
+    if request.method == 'POST':
+        patient = Patient(
+            name=request.form['name'],
+            age=request.form['age'],
+            diagnosis=request.form['diagnosis']
+        )
+        db.session.add(patient)
+        db.session.commit()
+        return redirect(url_for('dashboard'))
+    return render_template('add_patient.html')
 
 @app.route('/edit/<int:patient_id>', methods=['GET', 'POST'])
-def edit_advice(patient_id):
-    conn = sqlite3.connect('patients.db')
-    c = conn.cursor()
-
+def edit_patient(patient_id):
+    patient = Patient.query.get_or_404(patient_id)
     if request.method == 'POST':
-        new_advice = request.form['advice']
-        new_drugs = request.form['drugs']
-        new_notes = request.form['notes']
-        c.execute("UPDATE patients SET advice = ?, drugs = ?, notes = ? WHERE id = ?",
-                  (new_advice, new_drugs, new_notes, patient_id))
-        conn.commit()
-        conn.close()
-        return redirect('/dashboard')
+        patient.name = request.form['name']
+        patient.age = request.form['age']
+        patient.diagnosis = request.form['diagnosis']
+        db.session.commit()
+        return redirect(url_for('dashboard'))
+    return render_template('edit_patient.html', patient=patient)
 
-    c.execute("SELECT * FROM patients WHERE id = ?", (patient_id,))
-    patient = c.fetchone()
-    conn.close()
-    return render_template('edit.html', patient=patient)
+@app.route('/export/<int:patient_id>')
+def export_pdf(patient_id):
+    patient = Patient.query.get_or_404(patient_id)
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=f"Patient Report", ln=True, align='C')
+    pdf.cell(200, 10, txt=f"Name: {patient.name}", ln=True)
+    pdf.cell(200, 10, txt=f"Age: {patient.age}", ln=True)
+    pdf.cell(200, 10, txt=f"Diagnosis: {patient.diagnosis}", ln=True)
 
+    pdf_output = BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+    return send_file(pdf_output, as_attachment=True, download_name=f"{patient.name}_report.pdf")
+
+# ---------------------
+# Init command
+# ---------------------
+@app.cli.command('init-db')
+def init_db():
+    db.create_all()
+    if not Doctor.query.filter_by(username='admin').first():
+        hashed_pw = generate_password_hash('admin123')
+        admin = Doctor(username='admin', password=hashed_pw)
+        db.session.add(admin)
+        db.session.commit()
+    print('Database initialized and admin created.')
+
+# ---------------------
+# Run app
+# ---------------------
 if __name__ == '__main__':
     app.run(debug=True)
