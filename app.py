@@ -82,21 +82,6 @@ def edit_patient(patient_id):
         return redirect(url_for('dashboard'))
     return render_template('edit_patient.html', patient=patient)
 
-@app.route('/export/<int:patient_id>')
-def export_pdf(patient_id):
-    patient = Patient.query.get_or_404(patient_id)
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"Patient Report", ln=True, align='C')
-    pdf.cell(200, 10, txt=f"Name: {patient.name}", ln=True)
-    pdf.cell(200, 10, txt=f"Age: {patient.age}", ln=True)
-    pdf.cell(200, 10, txt=f"Diagnosis: {patient.diagnosis}", ln=True)
-
-    pdf_output = BytesIO()
-    pdf.output(pdf_output)
-    pdf_output.seek(0)
-    return send_file(pdf_output, as_attachment=True, download_name=f"{patient.name}_report.pdf")
 
 # ---------------------
 # Init command
