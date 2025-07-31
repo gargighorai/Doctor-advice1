@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, session
+from models import db, Doctor, Patient 
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,9 +7,13 @@ import os
 from fpdf import FPDF
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///patients.db'
-app.config['SECRET_KEY'] = 'secret-key'
-db = SQLAlchemy(app)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
+
+with app.app_context():
+    db.create_all()
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -59,45 +64,33 @@ def dashboard():
     patients = Patient.query.all()
     return render_template('dashboard.html', patients=patients, doctor_name=session['doctor'])
 
-@app.route('/add', methods=['GET', 'POST'])
+@app.route('/add_patient', methods=['GET', 'POST'])
 def add_patient():
+    if 'doctor_id' not in session:
+        return redirect('/login')
     if request.method == 'POST':
-        patient = Patient(
-            name=request.form['name'],
-            age=request.form['age'],
-            diagnosis=request.form['diagnosis']
-        )
-        db.session.add(patient)
-        db.session.commit()
-        return redirect(url_for('dashboard'))
-    return render_template('add_patient.html')
-
-@app.route("/add_patient", methods=["GET", "POST"])
-@login_required
-def add_patient():
-    if request.method == "POST":
-        name = request.form["name"]
-        age = request.form["age"]
+        name = request.form['name']
+        age = request.form['age']
         gender = request.form['gender']
         symptoms = request.form['symptoms']
         diagnosis = request.form['diagnosis']
-        drugs = request.form.getlist("drugs")
-        advice_text = request.form["advice"]
-        full_advice = "; ".join(drugs) + "\\n" + advice_text
-
-        patient = Patient(
-            name=name, 
-            age=age, 
+        doctor_id = session['doctor_id']
+        new_patient = Patient(
+            name=name,
+            age=age,
             gender=gender,
             symptoms=symptoms,
-            diagnosis=diagnosis, 
-              doctor_id=session['doctor_id']
-              )
-        db.session.add(patient)
+            diagnosis=diagnosis,
+            doctor_id=doctor_id
+        )
+        db.session.add(new_patient)
         db.session.commit()
-        return redirect('/dashboard')
-    
-    return render_template("add_patient.html")
+        return redirect('/dashboard')  # or another page
+
+    return render_template('add_patient.html')
+
+
+
 
 @app.route('/edit/<int:patient_id>', methods=['GET', 'POST'])
 def edit_patient(patient_id):
