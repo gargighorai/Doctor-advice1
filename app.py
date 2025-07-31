@@ -1,16 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for, session, send_file
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from io import BytesIO
+import os
 from fpdf import FPDF
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///patients.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+app.config['SECRET_KEY'] = 'secret-key'
 db = SQLAlchemy(app)
 
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 # ---------------------
 # Database Models
 # ---------------------
