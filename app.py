@@ -99,5 +99,9 @@ def init_db():
 # ---------------------
 # Run app
 # ---------------------
-if __name__ == '__main__':
-    app.run(debug=True)
+import os
+from init_db import init_database
+init_database(app, db, Doctor)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+

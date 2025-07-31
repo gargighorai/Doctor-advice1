@@ -1,22 +1,11 @@
-import sqlite3
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash
 
-conn = sqlite3.connect('patients.db')
-c = conn.cursor()
-
-c.execute('DROP TABLE IF EXISTS patients')
-
-c.execute("""
-    CREATE TABLE patients (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        age INTEGER,
-        symptoms TEXT,
-        advice TEXT,
-        drugs TEXT,
-        notes TEXT
-    )
-""")
-
-conn.commit()
-conn.close()
-print("✅ Updated patients table created.")
+def init_database(app, db, Doctor):
+    with app.app_context():
+        db.create_all()
+        if not Doctor.query.first():
+            default_doctor = Doctor(username="admin", password=generate_password_hash("admin123"))
+            db.session.add(default_doctor)
+            db.session.commit()
+            print("✅ Default doctor created: admin / admin123")
