@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Doctor Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+    }
+    .navbar {
+      background-color: #007bff;
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
+    .container {
+      width: 80%;
+      margin: auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: 5px;
+    }
+    h2{
+      color: red;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    footer {
+      text-align: center;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+    }
+  </style>
+   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="navbar">
+    
+      <li>Doctor's Dashboard</li>
+      <!-- <li><a href="{{ url_for('home') }}" style="color: white; text-decoration: none;">Home</a></li>
+      <li><a href="{{ url_for('home') }}" style="color: white; text-decoration: none;">Logout</a></li>
+       -->
+    </div>
+  
+  <div class="container">
+    <h2>Welcome Dr. N K Ghorai</h2>
+
+    <h3>List of Patients</h3>
+    <hr />
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Age</th>
+          <th>Diagnosis</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for patient in patients %}
+        <tr>
+          <td>{{ patient.name }}</td>
+          <td>{{ patient.age }}</td>
+          <td>{{ patient.diagnosis }}</td>
+          <td>
+            <a href="{{ url_for('edit_patient', patient_id=patient.id) }}">Edit</a> 
+           
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <br>
+    <a href="{{ url_for('add_patient') }}">
+      <button>Add New Patient</button>
+    </a>
+  </div>
+
+
+<form action="{{ url_for('logout') }}" method="POST">
+  <button type="submit">Logout</button>
+</form>
+  <footer>
+    &copy; 2025 Dr N K Ghorai Advice App
+  </footer>
+</body>
+</html>

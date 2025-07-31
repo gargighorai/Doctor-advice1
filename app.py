@@ -72,6 +72,33 @@ def add_patient():
         return redirect(url_for('dashboard'))
     return render_template('add_patient.html')
 
+@app.route("/add_patient", methods=["GET", "POST"])
+@login_required
+def add_patient():
+    if request.method == "POST":
+        name = request.form["name"]
+        age = request.form["age"]
+        gender = request.form['gender']
+        symptoms = request.form['symptoms']
+        diagnosis = request.form['diagnosis']
+        drugs = request.form.getlist("drugs")
+        advice_text = request.form["advice"]
+        full_advice = "; ".join(drugs) + "\\n" + advice_text
+
+        patient = Patient(
+            name=name, 
+            age=age, 
+            gender=gender,
+            symptoms=symptoms,
+            diagnosis=diagnosis, 
+              doctor_id=session['doctor_id']
+              )
+        db.session.add(patient)
+        db.session.commit()
+        return redirect('/dashboard')
+    
+    return render_template("add_patient.html")
+
 @app.route('/edit/<int:patient_id>', methods=['GET', 'POST'])
 def edit_patient(patient_id):
     patient = Patient.query.get_or_404(patient_id)
@@ -101,8 +128,16 @@ def init_db():
 # Run app
 # ---------------------
 import os
-from init_db import init_database
-init_database(app, db, Doctor)
+# from .init_db import init_database
+# init_database(app, db, Doctor)
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    with app.app_context():
+        db.create_all()
+        if not Doctor.query.first():
+            from werkzeug.security import generate_password_hash
+            default = Doctor(username="admin", password=generate_password_hash("admin123"))
+            db.session.add(default)
+            db.session.commit()
+            print("✅ Database initialized with default admin")
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
 
