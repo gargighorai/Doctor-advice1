@@ -6,6 +6,7 @@ class Doctor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
+    
     patients = db.relationship('Patient', backref='doctor', lazy=True)
 
 class Patient(db.Model):

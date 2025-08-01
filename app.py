@@ -57,12 +57,13 @@ def logout():
     session.pop('doctor', None)
     return redirect(url_for('login'))
 
+from flask_login import login_required, current_user
+from flask import render_template
+
 @app.route('/dashboard')
+@login_required
 def dashboard():
-    if 'doctor' not in session:
-        return redirect(url_for('login'))
-    patients = Patient.query.all()
-    return render_template('dashboard.html', patients=patients, doctor_name=session['doctor'])
+    return render_template('dashboard.html', doctor=current_user)
 
 @app.route('/add_patient', methods=['GET', 'POST'])
 def add_patient():
